@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Modern Private Chat</title>
+  <style>
+    :root {
+      --primary-color: #6366f1;
+      --secondary-color: #f1f5f9;
+      --background: #f8fafc;
+      --text-color: #1e293b;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--background);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 1.5rem;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    /* Lobby Styles */
+    #lobby {
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+
+    .card {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: var(--primary-color);
+      margin-bottom: 2rem;
+      font-size: 1.8rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 0.75rem;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    button {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .action-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .or-divider {
+      color: #64748b;
+      position: relative;
+    }
+
+    .or-divider::before,
+    .or-divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 2px solid #e2e8f0;
+      margin: auto;
+    }
+
+    .join-section {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .join-section input {
+      flex: 1;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Chat Interface */
+    #chatInterface {
+      display: flex;
+      flex-direction: column;
+      height: 70vh;
+    }
+
+    .room-info {
+      padding: 1rem 2rem;
+      background: var(--primary-color);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    #messages {
+      flex: 1;
+      padding: 2rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .message {
+      padding: 1rem;
+      border-radius: 1rem;
+      max-width: 70%;
+      animation: messageAppear 0.2s ease-out;
+    }
+
+    .message.self {
+      background: var(--primary-color);
+      color: white;
+      align-self: flex-end;
+    }
+
+    .message.other {
+      background: #e2e8f0;
+      align-self: flex-start;
+    }
+    .message-time{
+      color: #000000;
+      font-size: 13px;
+    }
+    .message-header{
+      color : #000957;
+      font-size: 16px;
+    }
+
+    .system-message {
+      color: #64748b;
+      text-align: center;
+      font-size: 0.9rem;
+      margin: 1rem 0;
+    }
+
+    #chatForm {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1.5rem;
+      border-top: 2px solid #e2e8f0;
+    }
+
+    @keyframes messageAppear {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Lobby -->
+    <div id="lobby">
+      <div class="card">
+        <h1>Private Chat 💬</h1>
+        <div class="form-group">
+          <input type="text" id="username" placeholder="Enter your name" required>
+        </div>
+        <div class="action-buttons">
+          <div class="join-section">
+            <input type="text" id="roomId" placeholder="Enter room ID">
+            <button onclick="joinRoom()">Join Room</button>
+          </div>
+          <div class="or-divider">OR</div>
+          <button onclick="createRoom()">Create New Room</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Interface -->
+    <div id="chatInterface" class="hidden">
+      <div class="room-info">
+        <span>Room ID: <strong id="currentRoomId"></strong></span>
+        <span>Participants: <span id="participantsList"></span></span>
+      </div>
+      <ul id="messages"></ul>
+      <form id="chatForm" onsubmit="return sendMessage(event)">
+        <input id="messageInput" placeholder="Type your message..." autocomplete="off">
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    const socket = io();
+    let currentRoom = null;
+    let username = '';
+
+    // Lobby functions
+    function createRoom() {
+      username = document.getElementById('username').value.trim();
+      if (!username) return alert('Please enter your name');
+      socket.emit('create room', username);
+    }
+
+  // Update the joinRoom function
+  function joinRoom() {
+    username = document.getElementById('username').value.trim();
+    const roomId = document.getElementById('roomId').value.trim();
+    if (!username || !roomId) return alert('Please fill all fields');
+    socket.emit('join room', { roomId, name: username });
+  }
+
+    // Chat functions
+  // Update sendMessage function
+  function sendMessage(e) {
+    e.preventDefault();
+    const input = document.getElementById('messageInput');
+    const msg = input.value.trim();
+    if (msg) {
+      socket.emit('chat message', msg);
+      input.value = '';
+      // Add message to sender's UI immediately
+      addMessage({msg , username}, 'self');
+    }
+  }
+
+    function addMessage(data, type) {
+      const messages = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = `message ${type}`;        //edit on line 267 
+      div.innerHTML = `
+        <div class="message-content">
+          <span class="message-header">${data.username}</span><br> ${data.msg}
+        </div>   
+        <div class="message-time">${new Date().toLocaleTimeString()}</div>
+      `;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    // Socket listeners
+    socket.on('chat message', ({msg , username}) => {
+      console.log('msg from socket listener' , msg);                // don't appear in console
+      console.log('msg from socket listener' , username);                // don't appear in console
+    addMessage({username , msg}, 'other'); // edit here
+    
+  });
+
+    socket.on('room created', (roomId) => {
+      document.getElementById('lobby').classList.add('hidden');
+      document.getElementById('chatInterface').classList.remove('hidden');
+      document.getElementById('currentRoomId').textContent = roomId;
+    });
+
+    socket.on('room joined', (data) => {
+    document.getElementById('lobby').classList.add('hidden');
+    document.getElementById('chatInterface').classList.remove('hidden');
+    document.getElementById('currentRoomId').textContent = data.roomId;
+    document.getElementById('participantsList').textContent = data.participants.join(', ');
+  });
+  
+    socket.on('user joined', (username) => {
+      addSystemMessage(`${username} joined the chat`);
+    });
+
+
+    socket.on('participants update', (participants) => {
+      document.getElementById('participantsList').textContent = participants.join(', ');
+    });
+
+    socket.on('error', (error) => {
+      Swal.fire({
+      icon: "error",
+      title: "Oops...",
+      text: `${error}`,
+      footer: ''
+      });
+    });
+
+function addSystemMessage(text) {
+    const messages = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'system-message';
+    div.textContent = text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+}
+</script>
+</body>
+</html>
