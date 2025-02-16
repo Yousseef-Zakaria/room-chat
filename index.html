@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Modern Private Chat</title>
+  <title>Youssef Private Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     :root {
       --primary-color: #6366f1;
@@ -26,7 +27,7 @@
     }
 
     .container {
-      max-width: 800px;
+      max-width: 55rem;
       margin: 0 auto;
       background: white;
       border-radius: 1.5rem;
@@ -50,7 +51,7 @@
     h1 {
       color: var(--primary-color);
       margin-bottom: 2rem;
-      font-size: 1.8rem;
+      /* font-size: 1.8rem; */
     }
 
     .form-group {
@@ -195,6 +196,24 @@
         transform: translateY(0);
       }
     }
+  @media screen and (max-width: 768px) {
+  .join-section{
+    display: flex;
+    flex-direction: column;
+  }
+  .card h1{
+    font-size: 2rem !important;
+  }
+  input {
+    font-size: 1rem;
+  }
+  .join-section button{
+    font-size: 1rem;
+  }
+  .action-buttons button{
+    font-size: 1rem;
+  }
+}
   </style>
 </head>
 <body>
